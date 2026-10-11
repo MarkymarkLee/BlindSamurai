@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DataFeel Control</title>
+<style>
+  :root {
+    --bg: #f4f4f2; --panel: #ffffff; --ink: #1b1b1a; --muted: #6b6b66; --line: #e2e2dd;
+    --accent: #2f6fe4; --danger: #d6372b; --ok: #2e9b5f; --warm: #e0662f; --cool: #2a8bd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212; --panel: #1c1c1b; --ink: #ededea; --muted: #9a9a94; --line: #2e2e2c;
+      --accent: #5b8ff0; --danger: #ef5a4c; --ok: #4cc283; --warm: #f08050; --cool: #4ea6ec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+           border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  #conn { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  #conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  #conn.live i { background: var(--ok); }
+  #conn.down i { background: var(--danger); }
+  .spacer { flex: 1; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; display: grid; gap: 16px; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+           padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.stop { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 650; padding: 8px 16px; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+
+  /* dot status row */
+  #dots { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .dot { background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; }
+  .dot.sel { border-color: var(--accent); }
+  .dot.err { opacity: .6; }
+  .dot .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .dot .name { font-weight: 650; }
+  .dot .sub { font-size: 11px; color: var(--muted); }
+  .dot .temp { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; margin: 6px 0 0; }
+  .dot .temp small { font-size: 13px; color: var(--muted); font-weight: 400; }
+  .dot .meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dot canvas { width: 100%; height: 36px; display: block; margin-top: 8px; }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 10px; padding: 2px 6px; border-radius: 99px; background: var(--bg); color: var(--muted); }
+  .chip.on { color: var(--accent); }
+  #targetbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #targetbar .t { padding: 5px 12px; border-radius: 99px; }
+  #targetbar .t.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* control panels */
+  #panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  label.slider { display: grid; grid-template-columns: 82px 1fr 64px; align-items: center; gap: 8px; margin-bottom: 10px; }
+  label.slider span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=color] { width: 44px; height: 34px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: var(--panel); }
+  select, input[type=number] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+                               background: var(--panel); color: var(--ink); }
+  .ring { position: relative; width: 150px; height: 150px; margin: 4px auto 14px; }
+  .ring button { position: absolute; width: 30px; height: 30px; border-radius: 50%; padding: 0; font-size: 10px;
+                 color: var(--muted); background: var(--bg); transform: translate(-50%, -50%); }
+  .ring .center { left: 50%; top: 50%; width: 64px; height: 64px; font-size: 11px; }
+  .swatches { display: flex; gap: 6px; }
+  .swatches button { width: 26px; height: 26px; border-radius: 50%; padding: 0; }
+  #seq { display: grid; gap: 6px; margin-bottom: 10px; }
+  #seq .step { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; align-items: center; }
+  #seq .step .n { color: var(--muted); font-size: 12px; }
+  #seq select { width: 100%; min-width: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; }
+  .seg button.sel { background: var(--accent); color: #fff; }
+  #thermalSlider.heat { accent-color: var(--warm); }
+  #thermalSlider.cool { accent-color: var(--cool); }
+  .note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+           padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #toast.bad { background: var(--danger); color: #fff; }
+  @media (max-width: 520px) { header { flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>DataFeel Control</h1>
+  <div id="conn"><i></i><span>connecting…</span></div>
+  <div class="spacer"></div>
+  <button id="rescan">Rescan</button>
+  <button class="stop" id="stopAll" title="Vibration, thermal and LEDs off on every dot (Esc)">STOP ALL</button>
+</header>
+
+<main>
+  <section>
+    <p class="section-label">Dots</p>
+    <div id="dots"></div>
+  </section>
+
+  <section>
+    <div id="targetbar"><span class="section-label" style="margin:0">Controls apply to</span></div>
+  </section>
+
+  <section id="panels">
+    <div class="panel">
+      <h2>Light</h2>
+      <div class="ring" id="ring"></div>
+      <div class="row">
+        <input type="color" id="color" value="#2f6fe4">
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <div class="row">
+        <button class="primary" id="ledAll">Fill ring</button>
+        <button id="ledBreathe">Breathe</button>
+        <button id="ledOff">Off</button>
+      </div>
+      <p class="note">Click an LED around the ring to set just that one.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Vibration</h2>
+      <label class="slider"><span>Frequency</span><input type="range" id="freq" min="50" max="300" step="1" value="170"><span id="freqV"></span></label>
+      <label class="slider"><span>Intensity</span><input type="range" id="inten" min="0" max="100" step="1" value="60"><span id="intenV"></span></label>
+      <div class="row">
+        <button class="primary" id="vibPlay">Play tone</button>
+        <button id="vibStop">Stop</button>
+        <label style="font-size:12px;color:var(--muted)"><input type="checkbox" id="vibLive" checked> update live</label>
+      </div>
+      <p class="section-label" style="margin-top:16px">Sequence (up to 8 steps)</p>
+      <div class="row" id="presets"></div>
+      <div id="seq"></div>
+      <div class="row">
+        <button id="seqAdd">+ Waveform</button>
+        <button id="seqRest">+ Rest</button>
+        <div class="spacer"></div>
+        <button class="primary" id="seqPlay">Play sequence</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Thermal</h2>
+      <div class="row">
+        <div class="seg" id="thermMode">
+          <button data-m="off" class="sel">Off</button>
+          <button data-m="intensity">Intensity</button>
+          <button data-m="target">Target °C</button>
+        </div>
+      </div>
+      <label class="slider" id="thermRow"><span id="thermLabel">Intensity</span><input type="range" id="thermalSlider"><span id="thermV"></span></label>
+      <div class="row">
+        <button class="primary" id="thermApply">Apply</button>
+        <button id="thermOff">Thermal off</button>
+      </div>
+      <p class="note">Intensity runs from −100% (max cooling) to +100% (max heating). Max heating gets uncomfortable fast on skin. Target mode is limited to 18–40 °C. Watch the skin temperature on the dot cards.</p>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { target: "all", dots: [], history: {}, waveforms: [], seq: [], thermMode: "off" };
+
+// ---------- API ----------
+let toastTimer;
+function toast(msg, bad = false) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "show" + (bad ? " bad" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = "", bad ? 4000 : 1400);
+}
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} :
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { const j = await res.json(); msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch {}
+    toast(msg, true); throw new Error(msg);
+  }
+  return res.json();
+}
+const send = (what, body) => api(`/api/dots/${state.target}/${what}`, body);
+
+// ---------- dot status ----------
+// Name the link only when dots are spread over more than one (USB and/or several El Jefes).
+const multiLink = () => new Set(state.dots.map(d => d.link)).size > 1;
+const dotLabel = d => `Dot ${d.address}` + (multiLink() ? ` · ${d.link}` : "");
+function renderDots() {
+  const wrap = $("#dots");
+  if (!state.dots.length) { wrap.innerHTML = `<p class="note">No dots found. Plug in El Jefe by USB or switch it on for Bluetooth, then click Rescan.</p>`; }
+  for (const d of state.dots) {
+    let el = wrap.querySelector(`[data-id="${d.id}"]`);
+    if (!el) {
+      if (!wrap.querySelector(".dot")) wrap.innerHTML = "";
+      el = document.createElement("div");
+      el.className = "dot"; el.dataset.id = d.id;
+      el.innerHTML = `<div class="top"><span class="name">Dot ${d.address}</span><span class="sub"></span></div>
+        <div class="temp"></div><div class="meta"></div><canvas></canvas><div class="chips"></div>`;
+      el.onclick = () => selectTarget(String(d.id));
+      wrap.appendChild(el);
+    }
+    el.querySelector(".sub").textContent = `${d.link} · fw ${d.firmware}`;
+    el.classList.toggle("sel", state.target === String(d.id) || state.target === "all");
+    el.classList.toggle("err", !d.ok);
+    if (!d.ok) { el.querySelector(".meta").textContent = "not responding"; continue; }
+    el.querySelector(".temp").innerHTML = `${d.skin_c.toFixed(1)}<small> °C skin</small>`;
+    el.querySelector(".meta").textContent = `heatsink ${d.sink_c.toFixed(1)} °C · thermal power ${d.thermal_power.toFixed(2)}`;
+    el.querySelector(".chips").innerHTML = [["LED", d.led_mode], ["VIB", d.vibration_mode], ["THERM", d.thermal_mode]]
+      .map(([k, v]) => `<span class="chip ${v !== "OFF" ? "on" : ""}">${k} ${v.toLowerCase().replace(/_/g, " ")}</span>`).join("");
+    drawSpark(el.querySelector("canvas"), state.history[d.id] || []);
+  }
+  for (const el of wrap.querySelectorAll(".dot"))
+    if (!state.dots.some(d => String(d.id) === el.dataset.id)) el.remove();
+}
+function drawSpark(cv, pts) {
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const c = cv.getContext("2d"); c.scale(dpr, dpr);
+  if (pts.length < 2) return;
+  let lo = Math.min(...pts), hi = Math.max(...pts);
+  if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5; }
+  c.strokeStyle = getComputedStyle(document.body).getPropertyValue("--accent"); c.lineWidth = 1.5; c.beginPath();
+  pts.forEach((v, i) => {
+    const x = i / (pts.length - 1) * w, y = h - 2 - (v - lo) / (hi - lo) * (h - 4);
+    i ? c.lineTo(x, y) : c.moveTo(x, y);
+  });
+  c.stroke();
+}
+function renderTargets() {
+  const bar = $("#targetbar");
+  bar.querySelectorAll(".t").forEach(b => b.remove());
+  for (const id of ["all", ...state.dots.map(d => String(d.id))]) {
+    const b = document.createElement("button");
+    b.className = "t" + (state.target === id ? " sel" : "");
+    b.textContent = id === "all" ? "All dots" : dotLabel(state.dots.find(d => String(d.id) === id));
+    b.onclick = () => selectTarget(id);
+    bar.appendChild(b);
+  }
+}
+function selectTarget(id) { state.target = id; renderTargets(); renderDots(); }
+
+let polling = false;
+async function poll() {
+  if (polling) return; polling = true;
+  try {
+    const dots = await (await fetch("/api/dots")).json();
+    const idsChanged = dots.map(d => d.id).join() !== state.dots.map(d => d.id).join();
+    state.dots = dots;
+    for (const d of dots) if (d.ok) {
+      const h = state.history[d.id] ||= [];
+      h.push(d.skin_c); if (h.length > 120) h.shift();
+    }
+    if (idsChanged) {
+      if (state.target !== "all" && !dots.some(d => String(d.id) === state.target)) state.target = "all";
+      renderTargets();
+    }
+    renderDots();
+    $("#conn").className = "live"; $("#conn span").textContent = `${dots.length} dot${dots.length === 1 ? "" : "s"} connected`;
+  } catch {
+    $("#conn").className = "down"; $("#conn span").textContent = "server not reachable";
+  } finally { polling = false; }
+}
+
+// ---------- light ----------
+function hexToRgb(hex) { const n = parseInt(hex.slice(1), 16); return { r: n >> 16, g: (n >> 8) & 255, b: n & 255 }; }
+(function buildRing() {
+  const ring = $("#ring");
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 - Math.PI / 2, b = document.createElement("button");
+    b.style.left = `${50 + Math.cos(a) * 40}%`; b.style.top = `${50 + Math.sin(a) * 40}%`;
+    b.textContent = i; b.title = `LED ${i}`;
+    b.onclick = async () => {
+      await send("led", { mode: "color", index: i, ...hexToRgb($("#color").value) });
+      b.style.background = $("#color").value;
+    };
+    ring.appendChild(b);
+  }
+  const center = document.createElement("button");
+  center.className = "center"; center.textContent = "Fill all"; center.onclick = fillRing;
+  ring.appendChild(center);
+})();
+const ringLeds = () => [...document.querySelectorAll("#ring button:not(.center)")];
+async function fillRing() {
+  await send("led", { mode: "color", ...hexToRgb($("#color").value) });
+  ringLeds().forEach(b => b.style.background = $("#color").value);
+}
+for (const c of ["#ff0000", "#ff8800", "#ffee00", "#00ff44", "#00c8ff", "#2244ff", "#cc00ff", "#ffffff"]) {
+  const b = document.createElement("button"); b.style.background = c; b.title = c;
+  b.onclick = () => { $("#color").value = c; fillRing(); };
+  $("#swatches").appendChild(b);
+}
+$("#ledAll").onclick = fillRing;
+$("#ledBreathe").onclick = () => send("led", { mode: "breathe" }).then(() => ringLeds().forEach(b => b.style.background = ""));
+$("#ledOff").onclick = () => send("led", { mode: "off" }).then(() => ringLeds().forEach(b => b.style.background = ""));
+
+// ---------- vibration ----------
+let vibPlaying = false, vibTimer;
+function vibLabels() { $("#freqV").textContent = `${$("#freq").value} Hz`; $("#intenV").textContent = `${$("#inten").value}%`; }
+const playTone = () => send("vibrate", { frequency: +$("#freq").value, intensity: $("#inten").value / 100 });
+$("#vibPlay").onclick = () => playTone().then(() => vibPlaying = true);
+// Cancel any pending live-update tone first, or it would restart the dot right after stopping.
+$("#vibStop").onclick = () => { vibPlaying = false; clearTimeout(vibTimer); send("vibration/stop", {}); };
+for (const id of ["#freq", "#inten"]) $(id).oninput = () => {
+  vibLabels();
+  if (vibPlaying && $("#vibLive").checked) { clearTimeout(vibTimer); vibTimer = setTimeout(playTone, 60); }
+};
+vibLabels();
+
+const PRESETS = {
+  "Click": ["STRONG_CLICK_P100"],
+  "Double": ["DOUBLE_CLICK_P100"],
+  "Heartbeat": ["SOFT_BUMP_P100", 0.12, "SOFT_BUMP_P60", 0.6, "SOFT_BUMP_P100", 0.12, "SOFT_BUMP_P60"],
+  "Alert": ["ALERT_750MS_P100"],
+  "Ramp up": ["TRANSITION_RAMP_UP_LONG_SMOOTH1_P0_TO_P100"],
+};
+for (const [name, steps] of Object.entries(PRESETS)) {
+  const b = document.createElement("button"); b.textContent = name;
+  b.onclick = () => { state.seq = [...steps]; renderSeq(); send("sequence", { steps: state.seq }); };
+  $("#presets").appendChild(b);
+}
+const pretty = n => n.toLowerCase().replace(/_p(\d+)/g, " $1%").replace(/_/g, " ");
+function renderSeq() {
+  const wrap = $("#seq"); wrap.innerHTML = "";
+  state.seq.forEach((s, i) => {
+    const row = document.createElement("div"); row.className = "step";
+    let input;
+    if (typeof s === "number") {
+      input = document.createElement("input"); input.type = "number"; input.min = 0; input.max = 1.27; input.step = 0.01; input.value = s;
+      input.onchange = () => state.seq[i] = Math.min(1.27, Math.max(0, +input.value));
+      const lab = document.createElement("label"); lab.style.cssText = "display:flex;gap:6px;align-items:center;color:var(--muted)";
+      lab.append("rest", input, "s"); input = lab;
+    } else {
+      input = document.createElement("select");
+      input.innerHTML = state.waveforms.map(w => `<option value="${w}" ${w === s ? "selected" : ""}>${pretty(w)}</option>`).join("");
+      input.onchange = () => state.seq[i] = input.value;
+    }
+    const del = document.createElement("button"); del.textContent = "✕"; del.onclick = () => { state.seq.splice(i, 1); renderSeq(); };
+    const n = document.createElement("span"); n.className = "n"; n.textContent = i + 1;
+    row.append(n, input, del); wrap.appendChild(row);
+  });
+  $("#seqAdd").disabled = $("#seqRest").disabled = state.seq.length >= 8;
+  $("#seqPlay").disabled = !state.seq.length;
+}
+$("#seqAdd").onclick = () => { state.seq.push(state.waveforms[0]); renderSeq(); };
+$("#seqRest").onclick = () => { state.seq.push(0.25); renderSeq(); };
+$("#seqPlay").onclick = () => send("sequence", { steps: state.seq });
+
+// ---------- thermal ----------
+function setThermMode(m) {
+  state.thermMode = m;
+  $("#thermMode").querySelectorAll("button").forEach(b => b.classList.toggle("sel", b.dataset.m === m));
+  const s = $("#thermalSlider");
+  $("#thermRow").style.display = m === "off" ? "none" : "";
+  if (m === "intensity") { s.min = -100; s.max = 100; s.step = 1; s.value = 0; $("#thermLabel").textContent = "Intensity"; }
+  if (m === "target") { s.min = 18; s.max = 40; s.step = 0.5; s.value = 32; $("#thermLabel").textContent = "Target"; }
+  thermLabel();
+}
+function thermLabel() {
+  const s = $("#thermalSlider"), v = +s.value;
+  if (state.thermMode === "intensity") {
+    $("#thermV").textContent = `${v > 0 ? "+" : ""}${v}%`;
+    s.className = v > 0 ? "heat" : v < 0 ? "cool" : "";
+  } else { $("#thermV").textContent = `${v.toFixed(1)} °C`; s.className = ""; }
+}
+$("#thermMode").querySelectorAll("button").forEach(b => b.onclick = () => setThermMode(b.dataset.m));
+$("#thermalSlider").oninput = thermLabel;
+$("#thermApply").onclick = () => {
+  const v = +$("#thermalSlider").value, m = state.thermMode;
+  send("thermal", { mode: m, value: m === "intensity" ? v / 100 : v }).then(() => toast(m === "off" ? "Thermal off" : "Thermal applied"));
+};
+$("#thermOff").onclick = () => { setThermMode("off"); send("thermal", { mode: "off" }).then(() => toast("Thermal off")); };
+setThermMode("off");
+
+// ---------- global ----------
+async function stopAll() {
+  vibPlaying = false; clearTimeout(vibTimer);
+  await api("/api/stop-all", {});
+  setThermMode("off"); ringLeds().forEach(b => b.style.background = "");
+  toast("Everything off");
+}
+$("#stopAll").onclick = stopAll;
+document.addEventListener("keydown", e => { if (e.key === "Escape") stopAll(); });
+$("#rescan").onclick = async () => {
+  $("#rescan").disabled = true;
+  try { const r = await api("/api/rescan", {}); toast(`Found dots: ${r.found.join(", ") || "none"}`); await poll(); }
+  finally { $("#rescan").disabled = false; }
+};
+
+(async () => {
+  state.waveforms = await (await fetch("/api/waveforms")).json();
+  state.seq = ["DOUBLE_CLICK_P100", 0.3, "STRONG_BUZZ_P100"];
+  renderSeq(); renderTargets();
+  await poll();
+  setInterval(poll, 1000);
+})();
+</script>
+</body>
+</html>

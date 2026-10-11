@@ -1,0 +1,5 @@
+pyserial
+minimalmodbus
+fastapi
+uvicorn
+bleak

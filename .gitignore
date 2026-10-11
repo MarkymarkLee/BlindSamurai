@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Built by headtracker/build.sh on each machine (ad-hoc signed, so it can't be shared anyway)
+headtracker/HeadTracker.app/
+
+# Downloaded by run.sh on first launch (~9 MB)
+models/*.task
+
+# Which physical dot is on which body part: specific to each kit and each player
+dots.json
+
+# Recordings and local clutter
+*.mov
+*.mp4
+.DS_Store
